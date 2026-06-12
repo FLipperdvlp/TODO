@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,7 +12,7 @@ import (
 type Todo struct {
 	Title       string
 	Completed   bool
-	CreatedAt   time.Time
+	CreateAt    time.Time
 	CompletedAt *time.Time
 }
 
@@ -24,50 +23,18 @@ func (todos *Todos) add(title string) {
 		Title:       title,
 		Completed:   false,
 		CompletedAt: nil,
-		CreatedAt:   time.Now(),
+		CreateAt:    time.Now(),
 	}
 
 	*todos = append(*todos, todo)
 }
 
-func (todos *Todos) validateIndex(index int) error {
-	if index < 0 || index >= len(*todos) {
-		err := errors.New("Invalid index")
-		fmt.Println(err)
-		return err
-	}
-
-	return nil
-}
-
 func (todos *Todos) delete(index int) error {
 	t := *todos
-
 	if err := t.validateIndex(index); err != nil {
 		return err
 	}
-
 	*todos = append(t[:index], t[index+1:]...)
-
-	return nil
-}
-
-func (todos *Todos) toggle(index int) error {
-	if err := todos.validateIndex(index); err != nil {
-		return err
-	}
-
-	t := *todos
-	todo := &t[index]
-
-	if !todo.Completed {
-		completedTime := time.Now()
-		todo.CompletedAt = &completedTime
-	} else {
-		todo.CompletedAt = nil
-	}
-
-	todo.Completed = !todo.Completed
 	return nil
 }
 
@@ -80,6 +47,22 @@ func (todos *Todos) edit(index int, title string) error {
 	return nil
 }
 
+func (todos *Todos) toggle(index int) error {
+	if err := todos.validateIndex(index); err != nil {
+		return err
+	}
+	t := *todos
+	todo := &t[index]
+	todo.Completed = !todo.Completed
+	if todo.Completed {
+		now := time.Now()
+		todo.CompletedAt = &now
+	} else {
+		todo.CompletedAt = nil
+	}
+	return nil
+}
+
 func (todos *Todos) print() {
 	table := table.New(os.Stdout)
 	table.SetRowLines(false)
@@ -88,16 +71,20 @@ func (todos *Todos) print() {
 	for index, t := range *todos {
 		completed := "❌"
 		completedAt := ""
-
 		if t.Completed {
 			completed = "✅"
 			if t.CompletedAt != nil {
-				completedAt = t.CompletedAt.Format(time.RFC1123) //time standard
+				completedAt = t.CompletedAt.Format(time.RFC1123)
 			}
 		}
-
-		table.AddRow(strconv.Itoa(index), t.Title, completed, t.CreatedAt.Format(time.RFC1123), completedAt)
+		table.AddRow(strconv.Itoa(index), t.Title, completed, t.CreateAt.Format(time.RFC1123), completedAt)
 	}
-
 	table.Render()
+}
+
+func (todos *Todos) validateIndex(index int) error {
+	if index < 0 || index >= len(*todos) {
+		return fmt.Errorf("index out of range")
+	}
+	return nil
 }
