@@ -1,14 +1,19 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
+
+	"github.com/aquasecurity/table"
 )
 
 type Todo struct {
 	Title       string
 	Completed   bool
-	CreateAt    time.Time
+	CreatedAt   time.Time
 	CompletedAt *time.Time
 }
 
@@ -19,10 +24,20 @@ func (todos *Todos) add(title string) {
 		Title:       title,
 		Completed:   false,
 		CompletedAt: nil,
-		CreateAt:    time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	*todos = append(*todos, todo)
+}
+
+func (todos *Todos) validateIndex(index int) error {
+	if index < 0 || index >= len(*todos) {
+		err := errors.New("Invalid index")
+		fmt.Println(err)
+		return err
+	}
+
+	return nil
 }
 
 func (todos *Todos) delete(index int) error {
@@ -36,6 +51,7 @@ func (todos *Todos) delete(index int) error {
 
 	return nil
 }
+
 func (todos *Todos) toggle(index int) error {
 	if err := todos.validateIndex(index); err != nil {
 		return err
@@ -44,21 +60,44 @@ func (todos *Todos) toggle(index int) error {
 	t := *todos
 	todo := &t[index]
 
-	todo.Completed = !todo.Completed
-
-	if todo.Completed {
-		now := time.Now()
-		todo.CompletedAt = &now
+	if !todo.Completed {
+		completedTime := time.Now()
+		todo.CompletedAt = &completedTime
 	} else {
 		todo.CompletedAt = nil
 	}
 
+	todo.Completed = !todo.Completed
 	return nil
 }
 
-func (todos *Todos) validateIndex(index int) error {
-	if index < 0 || index >= len(*todos) {
-		return fmt.Errorf("index out of range")
+func (todos *Todos) edit(index int, title string) error {
+	if err := todos.validateIndex(index); err != nil {
+		return err
 	}
+
+	(*todos)[index].Title = title
 	return nil
+}
+
+func (todos *Todos) print() {
+	table := table.New(os.Stdout)
+	table.SetRowLines(false)
+	table.SetHeaders("#", "Title", "Completed", "Created At", "Completed At")
+
+	for index, t := range *todos {
+		completed := "❌"
+		completedAt := ""
+
+		if t.Completed {
+			completed = "✅"
+			if t.CompletedAt != nil {
+				completedAt = t.CompletedAt.Format(time.RFC1123) //time standard
+			}
+		}
+
+		table.AddRow(strconv.Itoa(index), t.Title, completed, t.CreatedAt.Format(time.RFC1123), completedAt)
+	}
+
+	table.Render()
 }
